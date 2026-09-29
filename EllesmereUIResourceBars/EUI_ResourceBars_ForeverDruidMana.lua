@@ -420,6 +420,8 @@ local function Teardown()
     if S.divider then S.divider:Hide() end
     evf:UnregisterAllEvents()
     if S.host then S.host:Hide() end
+    local MRS = EllesmereUI.ManaRegenSpark
+    if MRS then MRS.Detach("shiftmana") end
     -- Reclaim the health strip if we were embedded (the carve now reads nil from us).
     if wasEmbedded and RelayoutPlayer then RelayoutPlayer() end
 end
@@ -559,6 +561,23 @@ local function RegisterUnlockOnce()
     }, "EllesmereUIResourceBars")
 end
 
+-- Mana Regen Spark: this bar always shows mana, so it hosts the spark (key
+-- "shiftmana", its own overlay) whenever the Power Bar's manaRegenSpark option is
+-- on. It shares the one 5s / Regen-Ticks sweep with the Power Bar host; a cast that
+-- costs mana (even in a form where the Power Bar shows energy) starts the sweep and
+-- this bar's spark rides it. Call after the fill orientation is set (Attach lays the
+-- spark out). pp = the resolved power settings.
+local function WireSpark(pp)
+    local MRS = EllesmereUI.ManaRegenSpark
+    if not (MRS and S.sb) then return end
+    if pp and pp.manaRegenSpark then
+        MRS.Attach("shiftmana", S.sb, pp.manaRegenSparkMode == "ticks")
+        MRS.SetMana("shiftmana", true)
+    else
+        MRS.Detach("shiftmana")
+    end
+end
+
 -------------------------------------------------------------------------------
 --  Entry points (main file)
 -------------------------------------------------------------------------------
@@ -608,6 +627,7 @@ function ns.FDM_Apply(pb, pp, g)
         ApplyBorder(pp, true)
         local r, gr, b = ApplyLook(pp, g, p, "HORIZONTAL")
         ApplyText(c, r, gr, b)
+        WireSpark(pp)
         local wasLive = S.live
         Refresh()
         RelayoutPlayer()
@@ -636,6 +656,7 @@ function ns.FDM_Apply(pb, pp, g)
     ApplyBorder(pp, inside)
     local r, gr, b = ApplyLook(pp, g, p, ori)
     ApplyText(c, r, gr, b)
+    WireSpark(pp)
     if wasEmbedded then RelayoutPlayer() end
     local wasLive = S.live
     Refresh()
