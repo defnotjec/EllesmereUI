@@ -8540,13 +8540,13 @@ initFrame:SetScript("OnEvent", function(self)
                               t.textFormat = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
                           end },
-                        { type="slider", text="Mana Bar Width", min=40, max=400, step=1,
+                        { type="slider", text="Mana Bar Height", min=2, max=30, step=1,
                           disabled = FdmOff, disabledTooltip = FdmOffTip,
-                          tooltip="Width of the Mana Bar in Free (movable) mode. In Power Bar and Embed modes the width follows the host bar.",
-                          getValue = function() local t = FdmCfg(); return t and t.width or 200 end,
+                          tooltip="Thickness of the Mana Bar. When Embedded, this is the strip height carved off the player health bar (the health bar keeps at least 8px).",
+                          getValue = function() local t = FdmCfg(); return t and t.height or 6 end,
                           setValue = function(v)
                               local t = FdmCfg(); if not t then return end
-                              t.width = v
+                              t.height = v
                               RefreshFDM()
                           end }); y = y - h
                     if not EllesmereUI._prebuilding then
@@ -8574,12 +8574,6 @@ initFrame:SetScript("OnEvent", function(self)
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
                                       t.gap = v; RefreshFDM()
-                                  end },
-                                { type = "slider", label = "Height", min = 2, max = 30, step = 1,
-                                  get = function() local t = FdmCfg(); return t and t.height or 6 end,
-                                  set = function(v)
-                                      local t = FdmCfg(); if not t then return end
-                                      t.height = v; RefreshFDM()
                                   end },
                                 { type = "slider", label = "X Offset", min = -100, max = 100, step = 1,
                                   get = function() local t = FdmCfg(); return t and t.offsetX or 0 end,
