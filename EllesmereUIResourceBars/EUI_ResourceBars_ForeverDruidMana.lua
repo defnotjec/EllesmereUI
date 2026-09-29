@@ -45,7 +45,13 @@ local evf = CreateFrame("Frame")
 -- visibility pass lets it show), live (shown and pbVis: mana events
 -- registered), cur / mx (last painted values), texPath (fill file last set),
 -- textOn / fmt / suffix (text settings as last applied).
-local S = { enabled = false, shown = false, live = false, pbVis = true }
+-- loc (current location: "powerbar" / "free" / "top" / "bottom"), c (last config
+-- table), attached (embed side while docked in the health strip), divider (1px line
+-- between health and mana while embedded).
+local S = { enabled = false, shown = false, live = false, pbVis = true, loc = "powerbar" }
+
+-- Forward decl: assigned in the Embed section below; Refresh closes over it.
+local RelayoutPlayer
 
 -------------------------------------------------------------------------------
 --  Helpers
@@ -197,6 +203,9 @@ local function Refresh()
     if shown ~= S.shown then
         S.shown = shown
         S.host:SetShown(shown)
+        -- Embedded: the form edge changes the carve footprint (docked in form,
+        -- reclaimed out of form). Re-run the player layout so the strip follows.
+        if (S.loc == "top" or S.loc == "bottom") and RelayoutPlayer then RelayoutPlayer() end
     end
     UpdateLive()
 end
@@ -218,13 +227,11 @@ end)
 -- The Power Bar's frame shape: outer frame (border + text, never clipped),
 -- inner StatusBar inset a quarter pixel so the fill never bleeds past the
 -- border, bg inside it. host._sb / host._bg are what ns.ApplyFillOpacity reads.
+-- Parenting is owned by FDM_Apply per location (Power Bar child / UIParent for Free /
+-- the health-bar clip while Embedded), so this only builds the frames once.
 local function EnsureBuilt(pb)
-    local host = S.host
-    if host then
-        if host:GetParent() ~= pb then host:SetParent(pb) end
-        return
-    end
-    host = CreateFrame("Frame", nil, pb)
+    if S.host then return end
+    local host = CreateFrame("Frame", nil, pb)
     host:Hide()
     local sb = CreateFrame("StatusBar", nil, host)
     local q = EllesmereUI.PP.mult * 0.25
@@ -399,10 +406,126 @@ end
 -- Off: every event dropped, the bar hidden (nothing anchors to it).
 local function Teardown()
     if not S.enabled then return end
+    local wasEmbedded = (S.loc == "top" or S.loc == "bottom")
     S.enabled, S.shown, S.live = false, false, false
     S.cur, S.mx = nil, nil
+    S.attached = nil
+    if S.divider then S.divider:Hide() end
     evf:UnregisterAllEvents()
-    S.host:Hide()
+    if S.host then S.host:Hide() end
+    -- Reclaim the health strip if we were embedded (the carve now reads nil from us).
+    if wasEmbedded and RelayoutPlayer then RelayoutPlayer() end
+end
+
+-------------------------------------------------------------------------------
+--  Embed (UnitFrames health-strip carve) + Free (movable) location support
+-------------------------------------------------------------------------------
+
+-- Clamp the strip so the health bar keeps >= 8px (the shared cap): 4 .. max(8, hh-8).
+local lastHealthHeight = 46
+local function ClampManaH(healthHeight)
+    local hi = max(8, (healthHeight or lastHealthHeight) - 8)
+    local h = (S.c and S.c.height) or 6
+    if h < 4 then h = 4 elseif h > hi then h = hi end
+    return h
+end
+
+-- Ask UnitFrames to re-lay out the player frame (applies / removes the carve now).
+local UFmod
+RelayoutPlayer = function()
+    UFmod = UFmod or (EllesmereUI._ModuleNS and EllesmereUI._ModuleNS["EllesmereUIUnitFrames"])
+    if UFmod and UFmod.UF_ReapplyPlayer then UFmod.UF_ReapplyPlayer() end
+end
+
+-- The provider the UnitFrames carve reads (EllesmereUI._ShiftManaAttach). GetAttachedBar
+-- returns the bar, side and clamped strip height only while Embed is on AND the bar is
+-- shown (druid in Cat/Bear form); nil otherwise, so the health bar reclaims the strip.
+EllesmereUI._ShiftManaAttach = {
+    GetAttachedBar = function(healthHeight)
+        if healthHeight then lastHealthHeight = healthHeight end
+        local c = S.c
+        if not (S.enabled and c and (c.location == "top" or c.location == "bottom")) then return nil end
+        if not (S.host and S.shown) then return nil end
+        return S.host, c.location, ClampManaH(healthHeight)
+    end,
+    -- Called by the carve after it parents + anchors the bar into the strip. Draws a 1px
+    -- divider on the health-facing edge so the two bars read as separate.
+    OnAttached = function(mbar, side)
+        S.attached = side
+        local d = S.divider
+        if not d then
+            d = mbar:CreateTexture(nil, "OVERLAY")
+            d:SetHeight(1)
+            S.divider = d
+        end
+        d:SetColorTexture(0, 0, 0, 1)
+        d:ClearAllPoints()
+        if side == "top" then
+            d:SetPoint("BOTTOMLEFT", mbar, "BOTTOMLEFT", 0, 0)
+            d:SetPoint("BOTTOMRIGHT", mbar, "BOTTOMRIGHT", 0, 0)
+        else
+            d:SetPoint("TOPLEFT", mbar, "TOPLEFT", 0, 0)
+            d:SetPoint("TOPRIGHT", mbar, "TOPRIGHT", 0, 0)
+        end
+        d:Show()
+    end,
+    Reapply = function() RelayoutPlayer() end,
+}
+
+-- Free mode: position the bar on UIParent from its saved unlock position (or a default).
+local function ApplyFreePosition()
+    local host = S.host
+    if not host then return end
+    host:ClearAllPoints()
+    local pos = S.c and S.c.unlockPos
+    if pos and pos.point then
+        host:SetPoint(pos.point, UIParent, pos.relPoint or pos.point, pos.x or 0, pos.y or 0)
+    else
+        host:SetPoint("CENTER", UIParent, "CENTER", 0, -180)
+    end
+end
+
+-- Movable registration (EllesmereUI unlock framework). Registered once; the element is
+-- hidden from the mover unless the feature is enabled and its location is Free.
+local _unlockRegistered = false
+local function CfgLive()
+    local p = ns.ERB.db and ns.ERB.db.profile
+    local pp = p and _G._ERB_ResolvePowerCfg(p)
+    return pp and pp.foreverDruidMana
+end
+local function IsFree()
+    local c = CfgLive()
+    return c and c.enabled and (c.location or "powerbar") == "free" or false
+end
+local function RegisterUnlockOnce()
+    if _unlockRegistered then return end
+    if not (EllesmereUI.MakeUnlockElement and EllesmereUI.RegisterUnlockElements) then return end
+    _unlockRegistered = true
+    local MK = EllesmereUI.MakeUnlockElement
+    local PPs = EllesmereUI.PP
+    EllesmereUI:RegisterUnlockElements({
+        MK({
+            key = "ERB_ShiftMana", label = "Mana Bar (Shapeshift)", group = "Resource Bars", order = 503,
+            isHidden = function() return not IsFree() end,
+            getFrame = function() if not IsFree() then return nil end return S.host end,
+            getSize  = function() local c = CfgLive(); return (c and c.width) or 200, (c and c.height) or 6 end,
+            setWidth  = function(_, w)  local c = CfgLive(); if c then c.width = max(40, PPs.Snap(w)) end; ns.FDM_Apply() end,
+            setHeight = function(_, hh) local c = CfgLive(); if c then c.height = max(3, PPs.Snap(hh)) end; ns.FDM_Apply() end,
+            savePos = function(_, point, relPoint, x, y)
+                if not point then return end
+                local c = CfgLive()
+                if c then c.unlockPos = { point = point, relPoint = relPoint or point, x = x, y = y } end
+                if S.host and IsFree() and not EllesmereUI._unlockActive then ApplyFreePosition() end
+            end,
+            loadPos = function()
+                local c = CfgLive(); local pos = c and c.unlockPos
+                if pos and pos.point then return pos end
+                return { point = "CENTER", relPoint = "CENTER", x = 0, y = -180 }
+            end,
+            clearPos = function() local c = CfgLive(); if c then c.unlockPos = nil end; if S.host and IsFree() then ApplyFreePosition() end end,
+            applyPos = function() if IsFree() and S.host then ApplyFreePosition() end end,
+        }),
+    }, "EllesmereUIResourceBars")
 end
 
 -------------------------------------------------------------------------------
@@ -426,16 +549,48 @@ function ns.FDM_Apply(pb, pp, g)
         return
     end
     S.pb = pb
+    S.c = c
     EnsureBuilt(pb)
     if not S.enabled then
         S.enabled = true
         evf:RegisterUnitEvent("UNIT_DISPLAYPOWER", "player")
     end
+    RegisterUnlockOnce()
     g = g or p.general or EMPTY
-    local ori, inside = Layout(pb, pp, g, c)
+    local loc = c.location or "powerbar"
+    local wasEmbedded = (S.loc == "top" or S.loc == "bottom")
+    S.loc = loc
+
+    if loc == "top" or loc == "bottom" then
+        -- Embed: the UnitFrames carve owns size + anchors. Style only (horizontal, no
+        -- own border -- the health frame's border wraps both), then relayout the frame.
+        ApplyBorder(pp, true)
+        local r, gr, b = ApplyLook(pp, g, p, "HORIZONTAL")
+        ApplyText(c, r, gr, b)
+        local wasLive = S.live
+        Refresh()
+        RelayoutPlayer()
+        if wasLive and S.live then Paint(true) end
+        return
+    end
+
+    -- Not embedded: drop any embed state and reclaim the health strip if we just left it.
+    if S.attached then S.attached = nil; if S.divider then S.divider:Hide() end end
+
+    local ori, inside
+    if loc == "free" then
+        if S.host:GetParent() ~= UIParent then S.host:SetParent(UIParent) end
+        ori, inside = "HORIZONTAL", false
+        S.host:SetSize(max(c.width or 200, 1), max(c.height or 6, 1))
+        if not EllesmereUI._unlockActive then ApplyFreePosition() end
+    else -- powerbar (the Power Bar child; position below/above/inside)
+        if S.host:GetParent() ~= pb then S.host:SetParent(pb) end
+        ori, inside = Layout(pb, pp, g, c)
+    end
     ApplyBorder(pp, inside)
     local r, gr, b = ApplyLook(pp, g, p, ori)
     ApplyText(c, r, gr, b)
+    if wasEmbedded then RelayoutPlayer() end
     local wasLive = S.live
     Refresh()
     -- Already live: the new look and text settings paint now (an edge into

@@ -1263,7 +1263,13 @@ local DEFAULTS = {
             -- bars (not used Inside); the text keys mirror the Power Bar's own.
             foreverDruidMana = (EllesmereUI.IS_FOREVER == true) and {
                 enabled     = false,
-                position    = "below",  -- "below","above","inside"
+                -- Where the bar lives. "powerbar" = ride the Power Bar (uses position
+                -- below/above/inside). "free" = a standalone movable bar (unlock UX).
+                -- "top"/"bottom" = Embed into the player unit frame's health bar (a strip
+                -- carved off the health bar; dynamic -- only while in Cat/Bear form).
+                location    = "powerbar",  -- "powerbar" | "free" | "top" | "bottom"
+                position    = "below",  -- "below","above","inside" (location == "powerbar")
+                width       = 200,      -- location == "free" only (else follows host bar)
                 gap         = 2,
                 height      = 6,
                 offsetX     = 0,

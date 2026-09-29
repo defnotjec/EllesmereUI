@@ -8520,6 +8520,24 @@ initFrame:SetScript("OnEvent", function(self)
                               t.textFormat = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
                           end }); y = y - h
+                    -- Location: where the bar sits. Power Bar rides the Power Bar (Position
+                    -- below/above/inside, in the cog). Free is a standalone movable bar (Unlock
+                    -- UI). Embed docks it into the player unit frame's health bar (a strip carved
+                    -- off the health bar, only while in form; health keeps >= 8px). "Embed" is
+                    -- deliberately not "anchor" -- it does not use the bar anchor system.
+                    _, h = W:DualRow(parent, y,
+                        { type="dropdown", text="Location",
+                          disabled = FdmOff, disabledTooltip = FdmOffTip,
+                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Position below / above / inside).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
+                          values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
+                          order = { "powerbar", "free", "top", "bottom" },
+                          getValue = function() local t = FdmCfg(); return (t and t.location) or "powerbar" end,
+                          setValue = function(v)
+                              local t = FdmCfg(); if not t then return end
+                              t.location = v
+                              RefreshFDM(); EllesmereUI:RefreshPage()
+                          end },
+                        EllesmereUI.BlankRowCfg()); y = y - h
                     if not EllesmereUI._prebuilding then
                         -- Placement cog: position, gap, height, offsets
                         EllesmereUI.BuildInlineCog(fdmRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
