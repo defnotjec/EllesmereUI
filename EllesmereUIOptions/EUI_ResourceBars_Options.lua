@@ -8461,10 +8461,12 @@ initFrame:SetScript("OnEvent", function(self)
                         sparkCfg); y = y - h
 
                     -- Mana Bar while Shapeshifted (EUI_ResourceBars_ForeverDruidMana.lua):
-                    -- a thin mana bar attached to the Power Bar in Bear and Cat Form.
-                    -- Its settings exist only on Forever (defaults primary.foreverDruidMana).
-                    -- Edits go straight to the module: the companion is not part of the
-                    -- bar build, so a full ApplyAll would rebuild every bar.
+                    -- a thin mana bar attached to the Power Bar in Bear and Cat Form. Its
+                    -- settings exist only on Forever (defaults primary.foreverDruidMana). Edits
+                    -- go straight to the module (a full ApplyAll would rebuild every bar). The
+                    -- enable toggle shares the Spell Cost Prediction row; Mana Bar Text + Height
+                    -- follow on the next row and are hidden entirely until enabled (the toggle's
+                    -- setValue calls RefreshPage, which re-runs this builder), not just greyed.
                     local function FdmCfg()
                         local p = DB(); return p and p.primary.foreverDruidMana
                     end
@@ -8493,17 +8495,8 @@ initFrame:SetScript("OnEvent", function(self)
                     local function RefreshFDM()
                         if ns.FDM_Apply then ns.FDM_Apply() end
                     end
-                    -- Row 1: Mana Bar while Shapeshifted (toggle) + Location. Row 2: Mana Bar
-                    -- Text + Mana Bar Width. The placement cog hangs off the toggle; the text
-                    -- colour swatches + text cog hang off the Mana Bar Text dropdown (row 2 left).
-                    -- Location / Mana Bar Text / Mana Bar Height (and their cogs) are hidden
-                    -- entirely until the feature is enabled, not just greyed. The toggle's
-                    -- setValue calls RefreshPage, which re-runs this builder so they appear /
-                    -- disappear on toggle.
-                    local fdmRow, fdmTextRow
                     local fdmShowSub = not FdmOff()
-                    fdmRow, h = W:DualRow(parent, y,
-                        { type="toggle", text="Mana Bar while Shapeshifted",
+                    local fdmToggleCfg = { type="toggle", text="Mana Bar while Shapeshifted",
                           tooltip="Shows a thin mana bar with the Power Bar while in Bear and Cat Form.",
                           disabled = FdmTypeMana,
                           disabledTooltip = "This option requires Power Type to be set to Match Form",
@@ -8514,58 +8507,73 @@ initFrame:SetScript("OnEvent", function(self)
                               local t = FdmCfg(); if not t then return end
                               t.enabled = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
-                          end },
-                        -- Location: where the bar sits. Power Bar rides the Power Bar (Position
-                        -- below/above/inside, in the cog). Free is a standalone movable bar (Unlock
-                        -- UI). Embed docks it into the player unit frame's health bar (a strip carved
-                        -- off the health bar, only while in form; health keeps >= 8px). "Embed" is
-                        -- deliberately not "anchor" -- it does not use the bar anchor system.
-                        fdmShowSub and { type="dropdown", text="Location",
-                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Directly below).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
-                          values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
-                          order = { "powerbar", "free", "top", "bottom" },
-                          getValue = function() local t = FdmCfg(); return (t and t.location) or "powerbar" end,
-                          setValue = function(v)
-                              local t = FdmCfg(); if not t then return end
-                              t.location = v
-                              RefreshFDM(); EllesmereUI:RefreshPage()
-                          end } or EllesmereUI.BlankRowCfg()); y = y - h
+                          end }
+
+                    -- Spell Cost Prediction (needs its engine, SCP, loaded: the swatch reads its
+                    -- colour rule) pairs with the Mana Bar while Shapeshifted toggle on one row.
+                    local fdmToggleRgn
+                    if SCP then
+                        local costRow
+                        costRow, h = W:DualRow(parent, y, costCfg, fdmToggleCfg); y = y - h
+                        CostSwatch(costRow._leftRegion)
+                        fdmToggleRgn = costRow._rightRegion
+                    else
+                        local tRow
+                        tRow, h = W:DualRow(parent, y, fdmToggleCfg, EllesmereUI.BlankRowCfg()); y = y - h
+                        fdmToggleRgn = tRow._leftRegion
+                    end
+
+                    -- Mana Bar Text + Height (hidden until enabled). Text colour swatches + text
+                    -- cog hang off Mana Bar Text (left); the placement cog hangs off the toggle above.
+                    local fdmRow
                     if fdmShowSub then
-                    fdmTextRow, h = W:DualRow(parent, y,
-                        { type="dropdown", text="Mana Bar Text",
-                          disabled = FdmOff,
-                          disabledTooltip = FdmOffTip,
-                          values = { none = "None", smart = "Smart Text", curpp = "Power Value", perpp = "Power %", both = "Power Value | Power %" },
-                          order = { "none", "smart", "curpp", "perpp", "both" },
-                          getValue = function()
-                              local t = FdmCfg(); return t and t.textFormat or "none"
-                          end,
-                          setValue = function(v)
-                              local t = FdmCfg(); if not t then return end
-                              t.textFormat = v
-                              RefreshFDM(); EllesmereUI:RefreshPage()
-                          end },
-                        { type="slider", text="Mana Bar Height", min=2, max=30, step=1,
-                          disabled = FdmOff, disabledTooltip = FdmOffTip,
-                          tooltip="Thickness of the Mana Bar. When Embedded, this is the strip height carved off the player health bar (the health bar keeps at least 8px).",
-                          getValue = function() local t = FdmCfg(); return t and t.height or 6 end,
-                          setValue = function(v)
-                              local t = FdmCfg(); if not t then return end
-                              t.height = v
-                              RefreshFDM()
-                          end }); y = y - h
+                        fdmRow, h = W:DualRow(parent, y,
+                            { type="dropdown", text="Mana Bar Text",
+                              disabled = FdmOff,
+                              disabledTooltip = FdmOffTip,
+                              tooltip="Follow Power Text uses the Power Bar's own text format (the default).",
+                              values = { follow = "Follow Power Text", none = "None", smart = "Smart Text", curpp = "Power Value", perpp = "Power %", both = "Power Value | Power %" },
+                              order = { "follow", "none", "smart", "curpp", "perpp", "both" },
+                              getValue = function()
+                                  local t = FdmCfg(); return t and t.textFormat or "follow"
+                              end,
+                              setValue = function(v)
+                                  local t = FdmCfg(); if not t then return end
+                                  t.textFormat = v
+                                  RefreshFDM(); EllesmereUI:RefreshPage()
+                              end },
+                            { type="slider", text="Mana Bar Height", min=2, max=30, step=1,
+                              disabled = FdmOff, disabledTooltip = FdmOffTip,
+                              tooltip="Thickness of the Mana Bar. When embedded (Position: Inside), this is the strip height carved off the anchor bar (the player health bar keeps at least 8px).",
+                              getValue = function() local t = FdmCfg(); return t and t.height or 6 end,
+                              setValue = function(v)
+                                  local t = FdmCfg(); if not t then return end
+                                  t.height = v
+                                  RefreshFDM()
+                              end }); y = y - h
                     end
                     if fdmShowSub and not EllesmereUI._prebuilding then
                         -- Placement cog: position, gap, height, offsets
-                        EllesmereUI.BuildInlineCog(fdmRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
+                        EllesmereUI.BuildInlineCog(fdmToggleRgn, { icon = EllesmereUI.DIRECTIONS_ICON,
                             disabled = FdmOff,
                             disabledTooltip = FdmOffTip,
                             title = "Mana Bar",
                             rows = {
+                                { type = "dropdown", label = "Anchor",
+                                  values = { healthbar = "Healthbar", powerbar = "Powerbar", free = "Free" },
+                                  order = { "healthbar", "powerbar", "free" },
+                                  tooltip = "Which bar the Mana Bar attaches to.\n\n|cffffd100Healthbar|r / |cffffd100Powerbar|r dock to that bar (see Position). |cffffd100Free|r is a standalone bar you place with the Unlock UI.",
+                                  get = function() local t = FdmCfg(); return t and t.anchor or "powerbar" end,
+                                  set = function(v)
+                                      local t = FdmCfg(); if not t then return end
+                                      t.anchor = v; RefreshFDM()
+                                  end },
                                 { type = "dropdown", label = "Position",
                                   values = { below = "Below", above = "Above", inside = "Inside" },
                                   order = { "below", "above", "inside" },
-                                  tooltip = "On a vertical Power Bar, Below is the right side and Above is the left side.",
+                                  disabled = function() local t = FdmCfg(); return (t and t.anchor == "free") and true or false end,
+                                  disabledTooltip = "Free bars are placed with the Unlock UI",
+                                  tooltip = "Where the Mana Bar sits on its anchor.\n\n|cffffd100Inside|r embeds it into the bar (carves a strip; Gap and offsets ignored). |cffffd100Below|r / |cffffd100Above|r sit it just outside, using Gap and the offsets. On a vertical Power Bar, Below is the right side and Above is the left.",
                                   get = function() local t = FdmCfg(); return t and t.position or "below" end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
@@ -8573,21 +8581,29 @@ initFrame:SetScript("OnEvent", function(self)
                                   end },
                                 { type = "slider", pixel = true, label = "Gap", min = 0, max = 20, step = 1,
                                   disabled = function()
-                                      local t = FdmCfg(); return (t and t.position == "inside") and true or false
+                                      local t = FdmCfg(); return (t and (t.position == "inside" or t.anchor == "free")) and true or false
                                   end,
-                                  disabledTooltip = "This option requires Position to be Below or Above",
+                                  disabledTooltip = "Gap applies to Below / Above only",
                                   get = function() local t = FdmCfg(); return t and t.gap or 2 end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
                                       t.gap = v; RefreshFDM()
                                   end },
                                 { type = "slider", label = "X Offset", min = -100, max = 100, step = 1,
+                                  disabled = function()
+                                      local t = FdmCfg(); return (t and (t.position == "inside" or t.anchor == "free")) and true or false
+                                  end,
+                                  disabledTooltip = "Offsets apply to Below / Above only",
                                   get = function() local t = FdmCfg(); return t and t.offsetX or 0 end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
                                       t.offsetX = v; RefreshFDM()
                                   end },
                                 { type = "slider", label = "Y Offset", min = -100, max = 100, step = 1,
+                                  disabled = function()
+                                      local t = FdmCfg(); return (t and (t.position == "inside" or t.anchor == "free")) and true or false
+                                  end,
+                                  disabledTooltip = "Offsets apply to Below / Above only",
                                   get = function() local t = FdmCfg(); return t and t.offsetY or 0 end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
@@ -8598,7 +8614,7 @@ initFrame:SetScript("OnEvent", function(self)
                         -- Text colour, left of the Mana Bar Text dropdown: custom colour
                         -- or the mana colour, like the Power Text swatches. The text cog
                         -- below chains left of them.
-                        EllesmereUI.BuildInlineSwatches(fdmTextRow._leftRegion, {
+                        EllesmereUI.BuildInlineSwatches(fdmRow._leftRegion, {
                             { tooltip = "Custom Colored",
                               hasAlpha = true,
                               getValue = function()
@@ -8642,7 +8658,7 @@ initFrame:SetScript("OnEvent", function(self)
                               end },
                         }, { disabled = FdmTextDis, disabledTooltip = FdmTextDisTip, size = 20 })
                         -- Text cog: the Power Text cog's options plus Text Size
-                        EllesmereUI.BuildInlineCog(fdmTextRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
+                        EllesmereUI.BuildInlineCog(fdmRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
                             disabled = FdmTextDis,
                             disabledTooltip = FdmTextDisTip,
                             title = "Mana Bar Text",
@@ -8682,11 +8698,6 @@ initFrame:SetScript("OnEvent", function(self)
                                   end },
                             },
                         })
-                    end
-                    if SCP then
-                        local costRow
-                        costRow, h = W:DualRow(parent, y, costCfg, EllesmereUI.BlankRowCfg()); y = y - h
-                        CostSwatch(costRow._leftRegion)
                     end
                 elseif EllesmereUI.ManaRegenSpark then
                     if SCP then
