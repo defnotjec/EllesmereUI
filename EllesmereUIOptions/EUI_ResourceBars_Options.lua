@@ -8493,7 +8493,10 @@ initFrame:SetScript("OnEvent", function(self)
                     local function RefreshFDM()
                         if ns.FDM_Apply then ns.FDM_Apply() end
                     end
-                    local fdmRow
+                    -- Row 1: Mana Bar while Shapeshifted (toggle) + Location. Row 2: Mana Bar
+                    -- Text + Mana Bar Width. The placement cog hangs off the toggle; the text
+                    -- colour swatches + text cog hang off the Mana Bar Text dropdown (row 2 left).
+                    local fdmRow, fdmTextRow
                     fdmRow, h = W:DualRow(parent, y,
                         { type="toggle", text="Mana Bar while Shapeshifted",
                           tooltip="Shows a thin mana bar with the Power Bar while in Bear and Cat Form.",
@@ -8507,6 +8510,23 @@ initFrame:SetScript("OnEvent", function(self)
                               t.enabled = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
                           end },
+                        -- Location: where the bar sits. Power Bar rides the Power Bar (Position
+                        -- below/above/inside, in the cog). Free is a standalone movable bar (Unlock
+                        -- UI). Embed docks it into the player unit frame's health bar (a strip carved
+                        -- off the health bar, only while in form; health keeps >= 8px). "Embed" is
+                        -- deliberately not "anchor" -- it does not use the bar anchor system.
+                        { type="dropdown", text="Location",
+                          disabled = FdmOff, disabledTooltip = FdmOffTip,
+                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Position below / above / inside).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
+                          values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
+                          order = { "powerbar", "free", "top", "bottom" },
+                          getValue = function() local t = FdmCfg(); return (t and t.location) or "powerbar" end,
+                          setValue = function(v)
+                              local t = FdmCfg(); if not t then return end
+                              t.location = v
+                              RefreshFDM(); EllesmereUI:RefreshPage()
+                          end }); y = y - h
+                    fdmTextRow, h = W:DualRow(parent, y,
                         { type="dropdown", text="Mana Bar Text",
                           disabled = FdmOff,
                           disabledTooltip = FdmOffTip,
@@ -8519,25 +8539,16 @@ initFrame:SetScript("OnEvent", function(self)
                               local t = FdmCfg(); if not t then return end
                               t.textFormat = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
-                          end }); y = y - h
-                    -- Location: where the bar sits. Power Bar rides the Power Bar (Position
-                    -- below/above/inside, in the cog). Free is a standalone movable bar (Unlock
-                    -- UI). Embed docks it into the player unit frame's health bar (a strip carved
-                    -- off the health bar, only while in form; health keeps >= 8px). "Embed" is
-                    -- deliberately not "anchor" -- it does not use the bar anchor system.
-                    _, h = W:DualRow(parent, y,
-                        { type="dropdown", text="Location",
+                          end },
+                        { type="slider", text="Mana Bar Width", min=40, max=400, step=1,
                           disabled = FdmOff, disabledTooltip = FdmOffTip,
-                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Position below / above / inside).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
-                          values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
-                          order = { "powerbar", "free", "top", "bottom" },
-                          getValue = function() local t = FdmCfg(); return (t and t.location) or "powerbar" end,
+                          tooltip="Width of the Mana Bar in Free (movable) mode. In Power Bar and Embed modes the width follows the host bar.",
+                          getValue = function() local t = FdmCfg(); return t and t.width or 200 end,
                           setValue = function(v)
                               local t = FdmCfg(); if not t then return end
-                              t.location = v
-                              RefreshFDM(); EllesmereUI:RefreshPage()
-                          end },
-                        EllesmereUI.BlankRowCfg()); y = y - h
+                              t.width = v
+                              RefreshFDM()
+                          end }); y = y - h
                     if not EllesmereUI._prebuilding then
                         -- Placement cog: position, gap, height, offsets
                         EllesmereUI.BuildInlineCog(fdmRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
@@ -8587,7 +8598,7 @@ initFrame:SetScript("OnEvent", function(self)
                         -- Text colour, left of the Mana Bar Text dropdown: custom colour
                         -- or the mana colour, like the Power Text swatches. The text cog
                         -- below chains left of them.
-                        EllesmereUI.BuildInlineSwatches(fdmRow._rightRegion, {
+                        EllesmereUI.BuildInlineSwatches(fdmTextRow._leftRegion, {
                             { tooltip = "Custom Colored",
                               hasAlpha = true,
                               getValue = function()
@@ -8631,7 +8642,7 @@ initFrame:SetScript("OnEvent", function(self)
                               end },
                         }, { disabled = FdmTextDis, disabledTooltip = FdmTextDisTip, size = 20 })
                         -- Text cog: the Power Text cog's options plus Text Size
-                        EllesmereUI.BuildInlineCog(fdmRow._rightRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
+                        EllesmereUI.BuildInlineCog(fdmTextRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
                             disabled = FdmTextDis,
                             disabledTooltip = FdmTextDisTip,
                             title = "Mana Bar Text",
