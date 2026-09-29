@@ -8517,7 +8517,7 @@ initFrame:SetScript("OnEvent", function(self)
                         -- deliberately not "anchor" -- it does not use the bar anchor system.
                         { type="dropdown", text="Location",
                           disabled = FdmOff, disabledTooltip = FdmOffTip,
-                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Position below / above / inside).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
+                          tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Directly below).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
                           values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
                           order = { "powerbar", "free", "top", "bottom" },
                           getValue = function() local t = FdmCfg(); return (t and t.location) or "powerbar" end,
