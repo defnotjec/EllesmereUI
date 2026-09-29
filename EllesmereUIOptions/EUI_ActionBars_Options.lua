@@ -1887,6 +1887,20 @@ initFrame:SetScript("OnEvent", function(self)
                             EAB.db.profile.bars["XPBar"].showTextBg = v
                             if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
                         end },
+                    -- WoW Forever: on a VERTICAL XP bar, run the text along the bar instead of
+                    -- overflowing its narrow width (no effect on a horizontal bar).
+                    { type="toggle", label="Reorient Vertical Text",
+                        get=function() local b = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"]; return b and not b.noReorientText end,
+                        set=function(v)
+                            EAB.db.profile.bars["XPBar"].noReorientText = not v
+                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
+                        end },
+                    { type="toggle", label="Read Downward",
+                        get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].textReadDown end,
+                        set=function(v)
+                            EAB.db.profile.bars["XPBar"].textReadDown = v
+                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
+                        end },
                 },
             })
         end

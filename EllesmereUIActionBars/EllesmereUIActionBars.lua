@@ -16279,6 +16279,17 @@ local function ApplyDataBarLayout(barKey)
         frame._text:SetFont(FONT_PATH, s.textSize or 9, EllesmereUI.GetFontOutlineFlag("actionBars"))
         frame._text:ClearAllPoints()
         frame._text:SetPoint("CENTER", s.textOffsetX or 0, s.textOffsetY or 0)
+        -- WoW Forever: reorient the readout to run ALONG a vertical bar instead of
+        -- overflowing its narrow width. SetRotation pivots about the string center, so the
+        -- CENTER anchor holds for both orientations. Opt out via noReorientText; textReadDown
+        -- flips +90 (read bottom->top) to -90 (top->bottom). Horizontal bars stay upright.
+        if frame._text.SetRotation then
+            local rot = 0
+            if orient == "VERTICAL" and not s.noReorientText then
+                rot = s.textReadDown and (-math.pi / 2) or (math.pi / 2)
+            end
+            frame._text:SetRotation(rot)
+        end
     end
 
     -- WoW Forever: the experience bar's 20 segments.
