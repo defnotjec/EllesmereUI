@@ -1879,6 +1879,14 @@ initFrame:SetScript("OnEvent", function(self)
                         set=function(v)
                             EAB.db.profile.bars["XPBar"].showLevel = v
                         end },
+                    -- WoW Forever: filled box behind the XP text so the Forever XP dividers
+                    -- do not cut through the glyphs. Relayout re-fits it to the string.
+                    { type="toggle", label="Text Background",
+                        get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].showTextBg end,
+                        set=function(v)
+                            EAB.db.profile.bars["XPBar"].showTextBg = v
+                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
+                        end },
                 },
             })
         end

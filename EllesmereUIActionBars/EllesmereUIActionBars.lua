@@ -16438,6 +16438,7 @@ local function UpdateXPBar()
     end
 
     text:SetText(strLevel .. strXP .. strRested)
+    if frame._fitTextBg then frame._fitTextBg() end
 
     EAB_VTABLE.ExtraBars.FinishManagedDataBarUpdate("XPBar", frame, s)
 end
@@ -16461,6 +16462,35 @@ local function CreateXPBar()
     restedBar:GetStatusBarTexture():SetDrawLayer("ARTWORK", 2)
     restedBar:Hide()
     holder._restedBar = restedBar
+
+    -- WoW Forever: Text Background (custom). A filled box behind the XP text so the Forever
+    -- XP dividers do not show through the glyphs and fragment them. On the text's own host
+    -- frame (above the dividers via frame level, below the text via ARTWORK vs the text's
+    -- OVERLAY); re-fit to the string in FitTextBg, called from UpdateXPBar after SetText.
+    -- On/off + colour come from the XPBar settings (showTextBg / textBgColor). Nil = off.
+    local textBg = holder._text:GetParent():CreateTexture(nil, "ARTWORK")
+    textBg:Hide()
+    holder._textBg = textBg
+    local function FitTextBg()
+        local cfg = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"]
+        local t = holder._text
+        if not cfg or not cfg.showTextBg or not t then textBg:Hide(); return end
+        local sw, sh = t:GetStringWidth() or 0, t:GetStringHeight() or 0
+        if sw <= 0 or sh <= 0 or (t:GetText() or "") == "" then textBg:Hide(); return end
+        local padX, padY = 3, 1
+        -- Rotated text (vertical + reorienting): its on-screen box is the string dims swapped.
+        local reoriented = (cfg.orientation == "VERTICAL") and not cfg.noReorientText
+        local bw, bh
+        if reoriented then bw, bh = sh + padY * 2, sw + padX * 2
+        else bw, bh = sw + padX * 2, sh + padY * 2 end
+        local c = cfg.textBgColor or {}
+        textBg:SetColorTexture(c.r or 0.06, c.g or 0.06, c.b or 0.08, c.a or 0.9)
+        textBg:ClearAllPoints()
+        textBg:SetSize(bw, bh)
+        textBg:SetPoint("CENTER", t, "CENTER", 0, 0)
+        textBg:Show()
+    end
+    holder._fitTextBg = FitTextBg
 
     -- Tooltip. Click Through suppresses it: on a mouseover bar the holder keeps mouse
     -- motion only so the hover fade can see the cursor.
