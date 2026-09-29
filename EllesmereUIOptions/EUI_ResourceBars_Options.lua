@@ -8496,7 +8496,12 @@ initFrame:SetScript("OnEvent", function(self)
                     -- Row 1: Mana Bar while Shapeshifted (toggle) + Location. Row 2: Mana Bar
                     -- Text + Mana Bar Width. The placement cog hangs off the toggle; the text
                     -- colour swatches + text cog hang off the Mana Bar Text dropdown (row 2 left).
+                    -- Location / Mana Bar Text / Mana Bar Height (and their cogs) are hidden
+                    -- entirely until the feature is enabled, not just greyed. The toggle's
+                    -- setValue calls RefreshPage, which re-runs this builder so they appear /
+                    -- disappear on toggle.
                     local fdmRow, fdmTextRow
+                    local fdmShowSub = not FdmOff()
                     fdmRow, h = W:DualRow(parent, y,
                         { type="toggle", text="Mana Bar while Shapeshifted",
                           tooltip="Shows a thin mana bar with the Power Bar while in Bear and Cat Form.",
@@ -8515,8 +8520,7 @@ initFrame:SetScript("OnEvent", function(self)
                         -- UI). Embed docks it into the player unit frame's health bar (a strip carved
                         -- off the health bar, only while in form; health keeps >= 8px). "Embed" is
                         -- deliberately not "anchor" -- it does not use the bar anchor system.
-                        { type="dropdown", text="Location",
-                          disabled = FdmOff, disabledTooltip = FdmOffTip,
+                        fdmShowSub and { type="dropdown", text="Location",
                           tooltip="Where the shapeshift Mana Bar sits.\n\n|cffffd100Power Bar|r rides the Power Bar (Directly below).\n|cffffd100Free (movable)|r is a standalone bar you place with the Unlock UI.\n|cffffd100Embed|r docks it into the player frame's health bar; the health bar shrinks by the mana bar's height while you are in Cat / Bear form, keeping the frame's total size.",
                           values = { powerbar = "Power Bar", free = "Free (movable)", top = "Embed: Top of Health", bottom = "Embed: Bottom of Health" },
                           order = { "powerbar", "free", "top", "bottom" },
@@ -8525,7 +8529,8 @@ initFrame:SetScript("OnEvent", function(self)
                               local t = FdmCfg(); if not t then return end
                               t.location = v
                               RefreshFDM(); EllesmereUI:RefreshPage()
-                          end }); y = y - h
+                          end } or EllesmereUI.BlankRowCfg()); y = y - h
+                    if fdmShowSub then
                     fdmTextRow, h = W:DualRow(parent, y,
                         { type="dropdown", text="Mana Bar Text",
                           disabled = FdmOff,
@@ -8549,7 +8554,8 @@ initFrame:SetScript("OnEvent", function(self)
                               t.height = v
                               RefreshFDM()
                           end }); y = y - h
-                    if not EllesmereUI._prebuilding then
+                    end
+                    if fdmShowSub and not EllesmereUI._prebuilding then
                         -- Placement cog: position, gap, height, offsets
                         EllesmereUI.BuildInlineCog(fdmRow._leftRegion, { icon = EllesmereUI.DIRECTIONS_ICON,
                             disabled = FdmOff,
