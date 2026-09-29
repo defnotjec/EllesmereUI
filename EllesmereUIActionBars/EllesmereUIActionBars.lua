@@ -6301,8 +6301,7 @@ end
 -- the width, 3 wide and 10/17 of the height, over the fill and under the text.
 function ns.AB_ForeverDataBarDividers(holder, w, h, orient)
     local host = holder._fvDivHost
-    local atlas = ns.AB_FV_ART.xpDivider
-    if not (ns.AB_Forever() and orient == "HORIZONTAL" and ns.AB_AtlasOK(atlas)) then
+    if not ns.AB_Forever() then
         if host then host:Hide() end
         return
     end
@@ -6313,22 +6312,68 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient)
         holder._fvDivHost = host
     end
     host:SetFrameLevel(holder:GetFrameLevel() + 2)
-    local dh = floor(h * 10 / 17 + 0.5)
-    if dh < 1 then dh = 1 end
-    local seg = w / 20
-    local tex = host._tex
-    for i = 1, 19 do
-        local t = tex[i]
-        if not t then
-            t = host:CreateTexture(nil, "OVERLAY")
-            t:SetAtlas(atlas)
-            tex[i] = t
-        end
-        t:SetSize(3, dh)
-        t:ClearAllPoints()
-        t:SetPoint("LEFT", holder, "LEFT", i * seg, 0)
-    end
     host:Show()
+
+    -- WoW Forever XP dividers (enhanced, custom): a dashed tick every 5% and a FULL stroke
+    -- every 10%, two configurable colours (tick5Color / tick10Color), following the bar's
+    -- orientation (vertical supported). Replaces the flat atlas dividers. Textures pool on
+    -- host._tex on demand; unused ones hide. "along = 1 + pct% * barLen" (1px border each end).
+    local cfg = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"]
+    local tex = host._tex
+    local vertical = (orient == "VERTICAL")
+    local barLen   = (vertical and h or w) - 2
+    local crossLen = (vertical and w or h) - 2
+    local used = 0
+    if barLen > 0 and crossLen > 0 then
+        local c5  = (cfg and cfg.tick5Color)  or {}
+        local c10 = (cfg and cfg.tick10Color) or {}
+        local r5, g5, b5    = c5.r  or 220/255, c5.g  or 167/255, c5.b  or 127/255
+        local r10, g10, b10 = c10.r or 1,       c10.g or 1,       c10.b or 1
+        local thick, dash, gap = 1, 2, 2
+        local function Next()
+            used = used + 1
+            local t = tex[used]
+            if not t then t = host:CreateTexture(nil, "OVERLAY"); tex[used] = t end
+            t:Show()
+            return t
+        end
+        for pct = 5, 95, 5 do
+            local along = 1 + (pct / 100) * barLen
+            if pct % 10 == 0 then
+                -- Full stroke spanning the cross axis.
+                local t = Next()
+                t:SetColorTexture(r10, g10, b10, 0.9)
+                t:ClearAllPoints()
+                if vertical then
+                    t:SetSize(crossLen, thick)
+                    t:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", 1, along - thick / 2)
+                else
+                    t:SetSize(thick, crossLen)
+                    t:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", along - thick / 2, 1)
+                end
+            else
+                -- Dashed segments along the cross axis, centered.
+                local unit = dash + gap
+                local count = max(1, floor((crossLen + gap) / unit))
+                local runLen = count * unit - gap
+                local startCross = 1 + max(0, (crossLen - runLen) / 2)
+                for d = 0, count - 1 do
+                    local t = Next()
+                    t:SetColorTexture(r5, g5, b5, 0.9)
+                    t:ClearAllPoints()
+                    local co = startCross + d * unit
+                    if vertical then
+                        t:SetSize(dash, thick)
+                        t:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", co, along - thick / 2)
+                    else
+                        t:SetSize(thick, dash)
+                        t:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", along - thick / 2, co)
+                    end
+                end
+            end
+        end
+    end
+    for i = used + 1, #tex do if tex[i] then tex[i]:Hide() end end
 end
 
 -------------------------------------------------------------------------------
