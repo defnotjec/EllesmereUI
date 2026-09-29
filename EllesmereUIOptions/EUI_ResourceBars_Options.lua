@@ -8495,7 +8495,21 @@ initFrame:SetScript("OnEvent", function(self)
                     local function RefreshFDM()
                         if ns.FDM_Apply then ns.FDM_Apply() end
                     end
+                    -- Mana Bar Height cap: Powerbar + Inside carves the Power Bar, which must
+                    -- keep >= 8px, so the height maxes at powerHeight - 8 (e.g. a 12px Power Bar
+                    -- caps the strip at 4). Healthbar/Free keep the full 30 (the health bar is
+                    -- tall; the apply-time clamp still guards short ones).
+                    local function FdmHeightMax()
+                        local t = FdmCfg()
+                        if t and t.anchor == "powerbar" and (t.position or "below") == "inside" then
+                            local pp = _G._ERB_ResolvePowerCfg and _G._ERB_ResolvePowerCfg(DB())
+                            local ph = (pp and pp.height) or 18
+                            return math.max(2, math.min(30, ph - 8))
+                        end
+                        return 30
+                    end
                     local fdmShowSub = not FdmOff()
+                    local fdmHMax = FdmHeightMax()
                     local fdmToggleCfg = { type="toggle", text="Mana Bar while Shapeshifted",
                           tooltip="Shows a thin mana bar with the Power Bar while in Bear and Cat Form.",
                           disabled = FdmTypeMana,
@@ -8542,7 +8556,7 @@ initFrame:SetScript("OnEvent", function(self)
                                   t.textFormat = v
                                   RefreshFDM(); EllesmereUI:RefreshPage()
                               end },
-                            { type="slider", text="Mana Bar Height", min=2, max=30, step=1,
+                            { type="slider", text="Mana Bar Height", min=2, max=fdmHMax, step=1,
                               disabled = FdmOff, disabledTooltip = FdmOffTip,
                               tooltip="Thickness of the Mana Bar. When embedded (Position: Inside), this is the strip height carved off the anchor bar (the player health bar keeps at least 8px).",
                               getValue = function() local t = FdmCfg(); return t and t.height or 6 end,
@@ -8566,7 +8580,7 @@ initFrame:SetScript("OnEvent", function(self)
                                   get = function() local t = FdmCfg(); return t and t.anchor or "powerbar" end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
-                                      t.anchor = v; RefreshFDM()
+                                      t.anchor = v; RefreshFDM(); EllesmereUI:RefreshPage()
                                   end },
                                 { type = "dropdown", label = "Position",
                                   values = { below = "Below", above = "Above", inside = "Inside" },
@@ -8577,7 +8591,7 @@ initFrame:SetScript("OnEvent", function(self)
                                   get = function() local t = FdmCfg(); return t and t.position or "below" end,
                                   set = function(v)
                                       local t = FdmCfg(); if not t then return end
-                                      t.position = v; RefreshFDM()
+                                      t.position = v; RefreshFDM(); EllesmereUI:RefreshPage()
                                   end },
                                 { type = "slider", pixel = true, label = "Gap", min = 0, max = 20, step = 1,
                                   disabled = function()
