@@ -6353,6 +6353,9 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
         if vertical and not (cfg and cfg.noReorientText) then
             lrot = (cfg and cfg.textReadDown) and (-math.pi / 2) or (math.pi / 2)
         end
+        -- Orientation-aware offsets: rotate (offX, offY) by lrot so X nudges along the label's
+        -- reading direction and Y across it, at any orientation.
+        local lcos, lsin = math.cos(lrot), math.sin(lrot)
         local function NextLbl()
             usedLbl = usedLbl + 1
             local fs = lbl[usedLbl]
@@ -6380,10 +6383,12 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
                     fs:SetText(pct .. "%")
                     if fs.SetRotation then fs:SetRotation(lrot) end
                     fs:ClearAllPoints()
+                    local rx = loffX * lcos - loffY * lsin
+                    local ry = loffX * lsin + loffY * lcos
                     if vertical then
-                        fs:SetPoint("CENTER", holder, "BOTTOM", loffX, along + loffY)
+                        fs:SetPoint("CENTER", holder, "BOTTOM", rx, along + ry)
                     else
-                        fs:SetPoint("CENTER", holder, "LEFT", along + loffX, loffY)
+                        fs:SetPoint("CENTER", holder, "LEFT", along + rx, ry)
                     end
                     fs:Show()
                 end
@@ -16314,19 +16319,20 @@ local function ApplyDataBarLayout(barKey)
     -- through the existing ApplyDataBarLayout calls.
     if frame._text then
         frame._text:SetFont(FONT_PATH, s.textSize or 9, EllesmereUI.GetFontOutlineFlag("actionBars"))
-        frame._text:ClearAllPoints()
-        frame._text:SetPoint("CENTER", s.textOffsetX or 0, s.textOffsetY or 0)
-        -- WoW Forever: reorient the readout to run ALONG a vertical bar instead of
-        -- overflowing its narrow width. SetRotation pivots about the string center, so the
-        -- CENTER anchor holds for both orientations. Opt out via noReorientText; textReadDown
-        -- flips +90 (read bottom->top) to -90 (top->bottom). Horizontal bars stay upright.
-        if frame._text.SetRotation then
-            local rot = 0
-            if orient == "VERTICAL" and not s.noReorientText then
-                rot = s.textReadDown and (-math.pi / 2) or (math.pi / 2)
-            end
-            frame._text:SetRotation(rot)
+        -- WoW Forever: reorient the readout to run ALONG a vertical bar instead of overflowing
+        -- its narrow width. SetRotation pivots about the string center. Opt out via
+        -- noReorientText; textReadDown flips +90 (read bottom->top) to -90 (top->bottom).
+        local rot = 0
+        if orient == "VERTICAL" and not s.noReorientText then
+            rot = s.textReadDown and (-math.pi / 2) or (math.pi / 2)
         end
+        -- Orientation-aware offsets: rotate the X/Y offset by the same angle so the sliders
+        -- stay intuitive -- X nudges along the reading direction, Y across it, at any rotation.
+        local ox, oy = s.textOffsetX or 0, s.textOffsetY or 0
+        local rc, rs = math.cos(rot), math.sin(rot)
+        frame._text:ClearAllPoints()
+        frame._text:SetPoint("CENTER", ox * rc - oy * rs, ox * rs + oy * rc)
+        if frame._text.SetRotation then frame._text:SetRotation(rot) end
     end
 
     -- Data bar dividers: the WoW Forever always-on segments, OR the standalone "Show
