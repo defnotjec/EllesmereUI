@@ -6358,6 +6358,10 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
         -- Orientation-aware offsets: rotate (offX, offY) by lrot so X nudges along the label's
         -- reading direction and Y across it, at any orientation.
         local lcos, lsin = math.cos(lrot), math.sin(lrot)
+        -- Anchor: the base position of each label relative to the bar at its mark (offsets
+        -- nudge from there, so their caps stay small). Orientation-aware -- top/bottom sit the
+        -- label off the long edges when horizontal / off the mark when vertical, and vice versa.
+        local lanchor = (cfg and cfg.dividerTextAnchor) or "center"
         local function NextLbl()
             usedLbl = usedLbl + 1
             local fs = lbl[usedLbl]
@@ -6387,11 +6391,21 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
                     fs:ClearAllPoints()
                     local rx = loffX * lcos - loffY * lsin
                     local ry = loffX * lsin + loffY * lcos
+                    local lp, bx, by
                     if vertical then
-                        fs:SetPoint("CENTER", holder, "BOTTOM", rx, along + ry)
+                        if lanchor == "left" then lp, bx, by = "RIGHT", 0, along
+                        elseif lanchor == "right" then lp, bx, by = "LEFT", crossLen, along
+                        elseif lanchor == "top" then lp, bx, by = "BOTTOM", crossLen / 2, along
+                        elseif lanchor == "bottom" then lp, bx, by = "TOP", crossLen / 2, along
+                        else lp, bx, by = "CENTER", crossLen / 2, along end
                     else
-                        fs:SetPoint("CENTER", holder, "LEFT", along + rx, ry)
+                        if lanchor == "top" then lp, bx, by = "BOTTOM", along, crossLen
+                        elseif lanchor == "bottom" then lp, bx, by = "TOP", along, 0
+                        elseif lanchor == "left" then lp, bx, by = "RIGHT", along, crossLen / 2
+                        elseif lanchor == "right" then lp, bx, by = "LEFT", along, crossLen / 2
+                        else lp, bx, by = "CENTER", along, crossLen / 2 end
                     end
+                    fs:SetPoint(lp, holder, "BOTTOMLEFT", bx + rx, by + ry)
                     fs:Show()
                 end
             else
