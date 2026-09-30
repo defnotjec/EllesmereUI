@@ -6326,6 +6326,9 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
     local barLen   = (vertical and h or w) - 2
     local crossLen = (vertical and w or h) - 2
     local used = 0
+    local usedLbl = 0
+    local lbl = host._lbl
+    if not lbl then lbl = {}; host._lbl = lbl end
     if barLen > 0 and crossLen > 0 then
         local c5  = (cfg and cfg.tick5Color)  or {}
         local c10 = (cfg and cfg.tick10Color) or {}
@@ -6338,6 +6341,23 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
             if not t then t = host:CreateTexture(nil, "OVERLAY"); tex[used] = t end
             t:Show()
             return t
+        end
+        -- Divider Text (custom): 10%..90% labels at the full-stroke marks; own font-string
+        -- pool, reusing the main readout's vertical reorient rules (noReorientText/textReadDown).
+        local showLbl = cfg and cfg.showDividerText
+        local lc = (cfg and cfg.dividerTextColor) or {}
+        local lr, lg, lb = lc.r or 1, lc.g or 1, lc.b or 1
+        local lsz = (cfg and cfg.dividerTextSize) or 8
+        local loffX, loffY = (cfg and cfg.dividerTextOffX) or 0, (cfg and cfg.dividerTextOffY) or 0
+        local lrot = 0
+        if vertical and not (cfg and cfg.noReorientText) then
+            lrot = (cfg and cfg.textReadDown) and (-math.pi / 2) or (math.pi / 2)
+        end
+        local function NextLbl()
+            usedLbl = usedLbl + 1
+            local fs = lbl[usedLbl]
+            if not fs then fs = host:CreateFontString(nil, "OVERLAY"); lbl[usedLbl] = fs end
+            return fs
         end
         for pct = 5, 95, 5 do
             local along = 1 + (pct / 100) * barLen
@@ -6352,6 +6372,20 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
                 else
                     t:SetSize(thick, crossLen)
                     t:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", along - thick / 2, 1)
+                end
+                if showLbl then
+                    local fs = NextLbl()
+                    fs:SetFont(FONT_PATH, lsz, EllesmereUI.GetFontOutlineFlag("actionBars"))
+                    fs:SetTextColor(lr, lg, lb, 1)
+                    fs:SetText(pct .. "%")
+                    if fs.SetRotation then fs:SetRotation(lrot) end
+                    fs:ClearAllPoints()
+                    if vertical then
+                        fs:SetPoint("CENTER", holder, "BOTTOM", loffX, along + loffY)
+                    else
+                        fs:SetPoint("CENTER", holder, "LEFT", along + loffX, loffY)
+                    end
+                    fs:Show()
                 end
             else
                 -- Dashed segments along the cross axis, centered.
@@ -6376,6 +6410,7 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
         end
     end
     for i = used + 1, #tex do if tex[i] then tex[i]:Hide() end end
+    for i = usedLbl + 1, #lbl do if lbl[i] then lbl[i]:Hide() end end
 end
 
 -------------------------------------------------------------------------------

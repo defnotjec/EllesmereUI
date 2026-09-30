@@ -1879,22 +1879,7 @@ initFrame:SetScript("OnEvent", function(self)
                         set=function(v)
                             EAB.db.profile.bars["XPBar"].showLevel = v
                         end },
-                    -- Dashed 5% / full 10% dividers along the bar. Standalone -- works in any
-                    -- action-bar style (the WoW Forever style also shows them by default).
-                    { type="toggle", label="Show Dividers",
-                        get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].showDividers end,
-                        set=function(v)
-                            EAB.db.profile.bars["XPBar"].showDividers = v
-                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
-                        end },
-                    -- WoW Forever: filled box behind the XP text so the Forever XP dividers
-                    -- do not cut through the glyphs. Relayout re-fits it to the string.
-                    { type="toggle", label="Text Background",
-                        get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].showTextBg end,
-                        set=function(v)
-                            EAB.db.profile.bars["XPBar"].showTextBg = v
-                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
-                        end },
+                    -- (Show Dividers + Text Background moved to visible rows below the cog.)
                     -- WoW Forever: on a VERTICAL XP bar, run the text along the bar instead of
                     -- overflowing its narrow width (no effect on a horizontal bar).
                     { type="toggle", label="Reorient Vertical Text",
@@ -1913,31 +1898,75 @@ initFrame:SetScript("OnEvent", function(self)
             })
         end
 
-        -- WoW Forever: XP divider colours (5% dashed / 10% full stroke) + Text Background
-        -- colour, in the data-bar multiSwatch pattern. Live via ApplyDataBarLayout on set.
+        -- XP divider + text controls:
+        --   [ Text Background (toggle + bg colour) | Show Dividers (toggle) ]
+        --   [ Divider Text (toggle + text colour + offset cog) | Divider Colors (5% / 10%) ]
+        -- Divider Text and Divider Colors grey out while Show Dividers is off.
         local function XPB() return EAB.db.profile.bars["XPBar"] end
-        _, h = W:DualRow(parent, y,
+        local function DivOn() local b = XPB(); return b and b.showDividers and true or false end
+        local xpbRowA, xpbRowB
+        xpbRowA, h = W:DualRow(parent, y,
+            { type="toggle", text="Text Background",
+              getValue=function() return XPB() and XPB().showTextBg end,
+              setValue=function(v) XPB().showTextBg = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
+            { type="toggle", text="Show Dividers",
+              getValue=function() return XPB() and XPB().showDividers end,
+              setValue=function(v) XPB().showDividers = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end; EllesmereUI:RefreshPage() end });  y = y - h
+        xpbRowB, h = W:DualRow(parent, y,
+            { type="toggle", text="Divider Text",
+              disabled=function() return not DivOn() end, disabledTooltip="Requires Show Dividers",
+              getValue=function() return XPB() and XPB().showDividerText end,
+              setValue=function(v) XPB().showDividerText = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
             { type="multiSwatch", text="Divider Colors",
               swatches = {
                   { tooltip = "5% Tick",
                     getValue = function() local c = XPB() and XPB().tick5Color; if c then return c.r or 220/255, c.g or 167/255, c.b or 127/255 end return 220/255, 167/255, 127/255 end,
                     setValue = function(r, g, b) XPB().tick5Color = { r = r, g = g, b = b }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
-                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
-                    refreshAlpha = function() return 1 end },
+                    onClick = function(self) if not DivOn() then return end if self._eabOrigClick then self._eabOrigClick(self) end end,
+                    refreshAlpha = function() return DivOn() and 1 or 0.3 end },
                   { tooltip = "10% Tick",
                     getValue = function() local c = XPB() and XPB().tick10Color; if c then return c.r or 1, c.g or 1, c.b or 1 end return 1, 1, 1 end,
                     setValue = function(r, g, b) XPB().tick10Color = { r = r, g = g, b = b }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
-                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
-                    refreshAlpha = function() return 1 end },
-              } },
-            { type="multiSwatch", text="Text Background",
-              swatches = {
-                  { tooltip = "Text Background Color",
-                    getValue = function() local c = XPB() and XPB().textBgColor; if c then return c.r or 0.06, c.g or 0.06, c.b or 0.08 end return 0.06, 0.06, 0.08 end,
-                    setValue = function(r, g, b) local o = XPB().textBgColor or {}; XPB().textBgColor = { r = r, g = g, b = b, a = o.a or 0.9 }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
-                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
-                    refreshAlpha = function() return 1 end },
-              } }); y = y - h
+                    onClick = function(self) if not DivOn() then return end if self._eabOrigClick then self._eabOrigClick(self) end end,
+                    refreshAlpha = function() return DivOn() and 1 or 0.3 end },
+              } });  y = y - h
+        if not EllesmereUI._prebuilding then
+            -- Text Background colour on the Text Background toggle.
+            EllesmereUI.BuildInlineSwatches(xpbRowA._leftRegion, {
+                { tooltip = "Text Background Color",
+                  getValue = function() local c = XPB() and XPB().textBgColor; if c then return c.r or 0.06, c.g or 0.06, c.b or 0.08 end return 0.06, 0.06, 0.08 end,
+                  setValue = function(r, g, b) local o = XPB().textBgColor or {}; XPB().textBgColor = { r = r, g = g, b = b, a = o.a or 0.9 }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
+                  onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
+                  refreshAlpha = function() return (XPB() and XPB().showTextBg) and 1 or 0.3 end },
+            }, { size = 20 })
+            -- Divider Text colour + a 4-arrow cog (Text Size / X / Y offset) on Divider Text.
+            EllesmereUI.BuildInlineSwatches(xpbRowB._leftRegion, {
+                { tooltip = "Divider Text Color",
+                  getValue = function() local c = XPB() and XPB().dividerTextColor; if c then return c.r or 1, c.g or 1, c.b or 1 end return 1, 1, 1 end,
+                  setValue = function(r, g, b) XPB().dividerTextColor = { r = r, g = g, b = b }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
+                  onClick = function(self) if not DivOn() then return end if self._eabOrigClick then self._eabOrigClick(self) end end,
+                  refreshAlpha = function() return DivOn() and 1 or 0.3 end },
+            }, { size = 20 })
+            -- No anchorTo: chains off region._lastInline (the Divider Text colour swatch
+            -- above), so the 4-arrow cog lands to the LEFT of the swatch instead of on it.
+            EllesmereUI.BuildInlineCog(xpbRowB._leftRegion, {
+                icon = EllesmereUI.DIRECTIONS_ICON,
+                title = "Divider Text",
+                disabled = function() return not DivOn() end,
+                disabledTooltip = "Requires Show Dividers",
+                rows = {
+                    { type="slider", label="Text Size", min=6, max=18, step=1,
+                      get=function() return XPB() and XPB().dividerTextSize or 8 end,
+                      set=function(v) XPB().dividerTextSize = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
+                    { type="slider", label="X Offset", min=-50, max=50, step=1,
+                      get=function() return XPB() and XPB().dividerTextOffX or 0 end,
+                      set=function(v) XPB().dividerTextOffX = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
+                    { type="slider", label="Y Offset", min=-50, max=50, step=1,
+                      get=function() return XPB() and XPB().dividerTextOffY or 0 end,
+                      set=function(v) XPB().dividerTextOffY = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
+                },
+            })
+        end
 
         _, h = W:Spacer(parent, y, 12);  y = y - h
         BuildDataBarSection("RepBar", "REPUTATION BAR", "Rep Bar Visibility")
