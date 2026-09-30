@@ -6299,9 +6299,12 @@ end
 -- The 20 segments of Blizzard's experience bar on our XP / reputation / favor
 -- bars: 19 dividers (horizontal bars only), each LEFT edge on a twentieth of
 -- the width, 3 wide and 10/17 of the height, over the fill and under the text.
-function ns.AB_ForeverDataBarDividers(holder, w, h, orient)
+function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
     local host = holder._fvDivHost
-    if not ns.AB_Forever() then
+    local cfg = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and barKey and EAB.db.profile.bars[barKey]
+    -- Not gated to the WoW Forever style anymore: render when the standalone "Show Dividers"
+    -- toggle is on (any action-bar style), OR in the WoW Forever style (its always-on default).
+    if not (ns.AB_Forever() or (cfg and cfg.showDividers)) then
         if host then host:Hide() end
         return
     end
@@ -6314,11 +6317,10 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient)
     host:SetFrameLevel(holder:GetFrameLevel() + 2)
     host:Show()
 
-    -- WoW Forever XP dividers (enhanced, custom): a dashed tick every 5% and a FULL stroke
-    -- every 10%, two configurable colours (tick5Color / tick10Color), following the bar's
-    -- orientation (vertical supported). Replaces the flat atlas dividers. Textures pool on
-    -- host._tex on demand; unused ones hide. "along = 1 + pct% * barLen" (1px border each end).
-    local cfg = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"]
+    -- Enhanced dividers (custom): a dashed tick every 5% and a FULL stroke every 10%, in two
+    -- configurable colours (tick5Color / tick10Color), following the bar's orientation
+    -- (vertical supported). Replaces the flat atlas dividers. Colours read from the bar's OWN
+    -- settings (barKey). Textures pool on host._tex; "along = 1 + pct% * barLen".
     local tex = host._tex
     local vertical = (orient == "VERTICAL")
     local barLen   = (vertical and h or w) - 2
@@ -16292,9 +16294,11 @@ local function ApplyDataBarLayout(barKey)
         end
     end
 
-    -- WoW Forever: the experience bar's 20 segments.
-    if frame._fvDivHost or ns.AB_Forever() then
-        ns.AB_ForeverDataBarDividers(frame, w, h, orient)
+    -- Data bar dividers: the WoW Forever always-on segments, OR the standalone "Show
+    -- Dividers" toggle in any action-bar style. _fvDivHost forces a call so turning it off
+    -- hides an existing host.
+    if frame._fvDivHost or ns.AB_Forever() or (s and s.showDividers) then
+        ns.AB_ForeverDataBarDividers(frame, w, h, orient, barKey)
     end
 
     -- Custom Border (one boolean read while off), then its reach for width /

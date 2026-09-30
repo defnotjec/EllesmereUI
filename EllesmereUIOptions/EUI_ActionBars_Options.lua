@@ -1879,6 +1879,14 @@ initFrame:SetScript("OnEvent", function(self)
                         set=function(v)
                             EAB.db.profile.bars["XPBar"].showLevel = v
                         end },
+                    -- Dashed 5% / full 10% dividers along the bar. Standalone -- works in any
+                    -- action-bar style (the WoW Forever style also shows them by default).
+                    { type="toggle", label="Show Dividers",
+                        get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].showDividers end,
+                        set=function(v)
+                            EAB.db.profile.bars["XPBar"].showDividers = v
+                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
+                        end },
                     -- WoW Forever: filled box behind the XP text so the Forever XP dividers
                     -- do not cut through the glyphs. Relayout re-fits it to the string.
                     { type="toggle", label="Text Background",
