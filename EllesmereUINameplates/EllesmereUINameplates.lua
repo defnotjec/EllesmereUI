@@ -9259,6 +9259,10 @@ function NameplateFrame:RefreshNamePosition(localOnly)
     elseif nameRaid then
         nameRaid:Hide()
     end
+    -- Lift the name above the plate's restricted/forbidden aura buttons when its slot
+    -- strata is HIGH (see EllesmereUINameplates_NameOverlay.lua). Runs after the name and
+    -- its marker have been (re)parented to the in-plate host just above, so it only lifts.
+    if ns.RefreshNameOverlay then ns.RefreshNameOverlay(self) end
     if localOnly then return end
     self:UpdateClassification()
     if not (p and p.classificationIncludeFaction) then self:UpdateFaction() end
@@ -9819,6 +9823,8 @@ function NameplateFrame:ApplyScale()
     end
     -- Lifted cast bar renders outside this plate's scale chain; keep its container pinned to the plate's effective scale.
     if ns.RefreshCastOverlay then ns.RefreshCastOverlay(self) end
+    -- Same for a lifted name (name-slot strata = HIGH).
+    if ns.RefreshNameOverlay then ns.RefreshNameOverlay(self) end
 end
 function NameplateFrame:ApplyCastColor(uninterruptible)
     local cfg = p or defaults

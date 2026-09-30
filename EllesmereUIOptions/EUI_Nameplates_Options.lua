@@ -503,6 +503,11 @@ initFrame:SetScript("OnEvent", function(self)
         local topTextFrame = CreateFrame("Frame", nil, pf)
         topTextFrame:SetAllPoints(health)
         topTextFrame:SetFrameLevel(health:GetFrameLevel() + 6)
+        -- Dedicated host for a HIGH-strata name (mirrors live's name lift): a name whose
+        -- slot Strata is HIGH is reparented here so it renders above the preview auras.
+        local nameStrataHost = CreateFrame("Frame", nil, pf)
+        nameStrataHost:SetAllPoints(health)
+        nameStrataHost:SetFrameStrata("HIGH")
 
         -- Name text (anchored BOTTOM to health TOP, +4px gap, width 113)
         local nameFS = pf:CreateFontString(nil, "OVERLAY")
@@ -1776,6 +1781,15 @@ initFrame:SetScript("OnEvent", function(self)
             ns.ReflowFontString(nameFS)
             if DBVal("hideEnemyNameWhileCasting") == true then nameFS:Hide() end
             LayoutPreviewNameRaidMarker()
+
+            -- Mirror live name Strata (EllesmereUINameplates_NameOverlay.lua): a name whose
+            -- slot Strata is HIGH is lifted above the preview auras so the Display page shows
+            -- the same result as live. Preview auras are plain frames here, so a HIGH-strata
+            -- host suffices (live must leave the plate tree to clear its forbidden aura buttons).
+            if pvNameSlotKey and DBVal(pvNameSlotKey .. "Strata") == "HIGH" then
+                nameFS:SetParent(nameStrataHost)
+                if nameRaidFrame:IsShown() then nameRaidFrame:SetParent(nameStrataHost) end
+            end
 
             -- Health bar color: always uses "enemies in combat" color
             local eic = (DB() and DB().enemyInCombat) or defaults.enemyInCombat
