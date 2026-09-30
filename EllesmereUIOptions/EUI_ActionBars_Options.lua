@@ -1871,6 +1871,11 @@ initFrame:SetScript("OnEvent", function(self)
                 EllesmereUI.BuildInlineCog(rgn, { icon = EllesmereUI.DIRECTIONS_ICON, anchorTo = rgn._control,
                     title = "Bar Text Offsets",
                     rows = {
+                        { type="dropdown", label="Anchor",
+                          values = { top="Top", bottom="Bottom", center="Center", left="Left", right="Right" },
+                          order = { "top", "bottom", "center", "left", "right" },
+                          get=function() return S().textAnchor or "center" end,
+                          set=function(v) S().textAnchor = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout(barKey) end end },
                         { type="slider", label="X Offset", min=-150, max=150, step=1,
                           get=function() return S().textOffsetX or 0 end,
                           set=function(v)
@@ -1976,11 +1981,6 @@ initFrame:SetScript("OnEvent", function(self)
                 disabled = function() return not DivOn() end,
                 disabledTooltip = "Requires Show Dividers",
                 rows = {
-                    { type="dropdown", label="Anchor",
-                      values = { top="Top", bottom="Bottom", center="Center", left="Left", right="Right" },
-                      order = { "top", "bottom", "center", "left", "right" },
-                      get=function() return XPB() and XPB().dividerTextAnchor or "center" end,
-                      set=function(v) XPB().dividerTextAnchor = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
                     { type="slider", label="Text Size", min=6, max=18, step=1,
                       get=function() return XPB() and XPB().dividerTextSize or 8 end,
                       set=function(v) XPB().dividerTextSize = v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },

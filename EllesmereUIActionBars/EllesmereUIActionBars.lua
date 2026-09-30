@@ -16346,9 +16346,19 @@ local function ApplyDataBarLayout(barKey)
         -- stay intuitive -- X nudges along the reading direction, Y across it, at any rotation.
         local ox, oy = s.textOffsetX or 0, s.textOffsetY or 0
         local rc, rs = math.cos(rot), math.sin(rot)
+        -- Anchor: the readout's base position on the bar (offsets nudge from there so their
+        -- caps stay small). CENTER anchor point so SetRotation still pivots about the anchor.
+        local anchor = s.textAnchor or "center"
+        local ap = (anchor == "top" and "TOP") or (anchor == "bottom" and "BOTTOM")
+            or (anchor == "left" and "LEFT") or (anchor == "right" and "RIGHT") or "CENTER"
+        local aox, aoy = ox * rc - oy * rs, ox * rs + oy * rc
         frame._text:ClearAllPoints()
-        frame._text:SetPoint("CENTER", ox * rc - oy * rs, ox * rs + oy * rc)
+        frame._text:SetPoint("CENTER", frame, ap, aox, aoy)
         if frame._text.SetRotation then frame._text:SetRotation(rot) end
+        -- Record the exact anchor + rotation so the text background can be given the IDENTICAL
+        -- transform (same holder point, same angle) and stay locked to the text regardless of
+        -- SetRotation's pivot -- anchoring the bg to the rotated fontstring desyncs.
+        frame._txAP, frame._txOX, frame._txOY, frame._txRot = ap, aox, aoy, rot
     end
 
     -- Data bar dividers: the WoW Forever always-on segments, OR the standalone "Show
@@ -16595,16 +16605,28 @@ local function CreateXPBar()
         local sw, sh = t:GetStringWidth() or 0, t:GetStringHeight() or 0
         if sw <= 0 or sh <= 0 or (t:GetText() or "") == "" then textBg:Hide(); return end
         local padX, padY = 3, 1
-        -- Rotated text (vertical + reorienting): its on-screen box is the string dims swapped.
-        local reoriented = (cfg.orientation == "VERTICAL") and not cfg.noReorientText
-        local bw, bh
-        if reoriented then bw, bh = sh + padY * 2, sw + padX * 2
-        else bw, bh = sw + padX * 2, sh + padY * 2 end
         local c = cfg.textBgColor or {}
         textBg:SetColorTexture(c.r or 0.06, c.g or 0.06, c.b or 0.08, c.a or 0.9)
-        textBg:ClearAllPoints()
+        -- The box is a static (never-rotated) quad: axis-aligned since the readout is only ever
+        -- rotated by 0 or +/-90 degrees, so when reoriented we just swap its dimensions to stand it
+        -- upright. Its centre therefore == its anchor point exactly.
+        local rot = holder._txRot or 0
+        local bw, bh
+        if rot ~= 0 then bw, bh = sh + padY * 2, sw + padX * 2
+        else bw, bh = sw + padX * 2, sh + padY * 2 end
+        if textBg.SetRotation then textBg:SetRotation(0) end
         textBg:SetSize(bw, bh)
-        textBg:SetPoint("CENTER", t, "CENTER", 0, 0)
+        -- SetRotation pivots the fontstring about the TOP-CENTRE of its (unrotated) region, so the
+        -- rendered text lands displaced from the region centre by (hh*sin, hh*(1-cos)), hh = half
+        -- the text height. Measured empirically: sh/2 at +90deg for font 9 (4.4) and font 22 (11).
+        -- This is 0 unrotated and flips sign for Read Downward, so the box tracks the text at any
+        -- size/angle. Anchor to the holder (not the rotated fontstring, which would desync).
+        local hh = sh / 2
+        local compX = hh * math.sin(rot)
+        local compY = hh * (1 - math.cos(rot))
+        textBg:ClearAllPoints()
+        textBg:SetPoint("CENTER", holder, holder._txAP or "CENTER",
+            (holder._txOX or 0) + compX, (holder._txOY or 0) + compY)
         textBg:Show()
     end
     holder._fitTextBg = FitTextBg
