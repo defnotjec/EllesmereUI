@@ -503,11 +503,14 @@ initFrame:SetScript("OnEvent", function(self)
         local topTextFrame = CreateFrame("Frame", nil, pf)
         topTextFrame:SetAllPoints(health)
         topTextFrame:SetFrameLevel(health:GetFrameLevel() + 6)
-        -- Dedicated host for a HIGH-strata name (mirrors live's name lift): a name whose
-        -- slot Strata is HIGH is reparented here so it renders above the preview auras.
+        -- Dedicated host for a raised-strata name (mirrors live's name lift): a name whose
+        -- slot Strata is above MEDIUM is reparented here so it renders above the preview auras.
+        -- Preview auras sit at health+8 and the preview root's strata varies (it lives in the
+        -- options window), so we raise by FRAME LEVEL within the same strata rather than a fixed
+        -- strata, which could invert (render BEHIND) under a higher-strata window.
         local nameStrataHost = CreateFrame("Frame", nil, pf)
         nameStrataHost:SetAllPoints(health)
-        nameStrataHost:SetFrameStrata("HIGH")
+        nameStrataHost:SetFrameLevel(health:GetFrameLevel() + 20)
 
         -- Name text (anchored BOTTOM to health TOP, +4px gap, width 113)
         local nameFS = pf:CreateFontString(nil, "OVERLAY")
@@ -1783,10 +1786,10 @@ initFrame:SetScript("OnEvent", function(self)
             LayoutPreviewNameRaidMarker()
 
             -- Mirror live name Strata (EllesmereUINameplates_NameOverlay.lua): a name whose
-            -- slot Strata is HIGH is lifted above the preview auras so the Display page shows
-            -- the same result as live. Preview auras are plain frames here, so a HIGH-strata
-            -- host suffices (live must leave the plate tree to clear its forbidden aura buttons).
-            if pvNameSlotKey and DBVal(pvNameSlotKey .. "Strata") == "HIGH" then
+            -- slot Strata is raised above MEDIUM is lifted above the preview auras so the Display
+            -- page shows the same result as live. Preview auras are plain frames, so the level
+            -- bump on nameStrataHost suffices (live must leave the plate tree past forbidden auras).
+            if pvNameSlotKey and DBVal(pvNameSlotKey .. "Strata") ~= "MEDIUM" then
                 nameFS:SetParent(nameStrataHost)
                 if nameRaidFrame:IsShown() then nameRaidFrame:SetParent(nameStrataHost) end
             end
