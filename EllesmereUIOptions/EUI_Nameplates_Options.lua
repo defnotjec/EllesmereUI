@@ -1785,11 +1785,17 @@ initFrame:SetScript("OnEvent", function(self)
             if DBVal("hideEnemyNameWhileCasting") == true then nameFS:Hide() end
             LayoutPreviewNameRaidMarker()
 
-            -- Mirror live name Strata (EllesmereUINameplates_NameOverlay.lua): a name whose
-            -- slot Strata is raised above MEDIUM is lifted above the preview auras so the Display
-            -- page shows the same result as live. Preview auras are plain frames, so the level
-            -- bump on nameStrataHost suffices (live must leave the plate tree past forbidden auras).
-            if pvNameSlotKey and DBVal(pvNameSlotKey .. "Strata") ~= "MEDIUM" then
+            -- Order the preview name against the (plain) preview auras by the chosen Strata,
+            -- mirroring live (EllesmereUINameplates_NameOverlay.lua): at MEDIUM or above the name
+            -- draws over the auras (nameStrataHost sits above them by frame level); at LOW /
+            -- BACKGROUND it stays behind (its default host sits below the debuffs). Assumes the
+            -- auras are at their default MEDIUM tier, as live.
+            local _npStrataRank = {
+                BACKGROUND = 0, LOW = 1, MEDIUM = 2, HIGH = 3,
+                DIALOG = 4, FULLSCREEN = 5, FULLSCREEN_DIALOG = 6, TOOLTIP = 7,
+            }
+            local _pvNameStrata = (pvNameSlotKey and DBVal(pvNameSlotKey .. "Strata")) or "MEDIUM"
+            if (_npStrataRank[_pvNameStrata] or 2) >= 2 then
                 nameFS:SetParent(nameStrataHost)
                 if nameRaidFrame:IsShown() then nameRaidFrame:SetParent(nameStrataHost) end
             end
