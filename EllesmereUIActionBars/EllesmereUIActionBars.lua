@@ -6349,8 +6349,10 @@ function ns.AB_ForeverDataBarDividers(holder, w, h, orient, barKey)
         local lr, lg, lb = lc.r or 1, lc.g or 1, lc.b or 1
         local lsz = (cfg and cfg.dividerTextSize) or 8
         local loffX, loffY = (cfg and cfg.dividerTextOffX) or 0, (cfg and cfg.dividerTextOffY) or 0
+        -- Divider labels have their OWN reorient toggle (noReorientDividerText) separate from
+        -- the main readout, but share the read direction (textReadDown).
         local lrot = 0
-        if vertical and not (cfg and cfg.noReorientText) then
+        if vertical and not (cfg and cfg.noReorientDividerText) then
             lrot = (cfg and cfg.textReadDown) and (-math.pi / 2) or (math.pi / 2)
         end
         -- Orientation-aware offsets: rotate (offX, offY) by lrot so X nudges along the label's

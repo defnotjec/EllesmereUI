@@ -1430,6 +1430,19 @@ initFrame:SetScript("OnEvent", function(self)
                   EllesmereUI:RefreshPage()
               end });  y = y - h
 
+        -- Reorient toggles: run the XP readout / the divider % labels ALONG a vertical bar.
+        -- Disabled unless Orientation is Vertical (no effect on a horizontal bar).
+        local function XPVert() local b = EAB.db.profile.bars["XPBar"]; return b and b.orientation == "VERTICAL" and true or false end
+        _, h = W:DualRow(parent, y,
+            { type="toggle", text="Reorient XP Text",
+              disabled=function() return not XPVert() end, disabledTooltip="Requires Vertical orientation",
+              getValue=function() local b = EAB.db.profile.bars["XPBar"]; return b and not b.noReorientText end,
+              setValue=function(v) EAB.db.profile.bars["XPBar"].noReorientText = not v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end },
+            { type="toggle", text="Reorient XP% Text",
+              disabled=function() return not XPVert() end, disabledTooltip="Requires Vertical orientation",
+              getValue=function() local b = EAB.db.profile.bars["XPBar"]; return b and not b.noReorientDividerText end,
+              setValue=function(v) EAB.db.profile.bars["XPBar"].noReorientDividerText = not v; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end });  y = y - h
+
         _, h = W:Spacer(parent, y, 12);  y = y - h
 
         -------------------------------------------------------------------
@@ -1895,14 +1908,7 @@ initFrame:SetScript("OnEvent", function(self)
                             EAB.db.profile.bars["XPBar"].showLevel = v
                         end },
                     -- (Show Dividers + Text Background moved to visible rows below the cog.)
-                    -- WoW Forever: on a VERTICAL XP bar, run the text along the bar instead of
-                    -- overflowing its narrow width (no effect on a horizontal bar).
-                    { type="toggle", label="Reorient Vertical Text",
-                        get=function() local b = EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"]; return b and not b.noReorientText end,
-                        set=function(v)
-                            EAB.db.profile.bars["XPBar"].noReorientText = not v
-                            if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end
-                        end },
+                    -- (Reorient toggles moved to the XP/REP BAR STYLE section, under Orientation.)
                     { type="toggle", label="Read Downward",
                         get=function() return EAB and EAB.db and EAB.db.profile and EAB.db.profile.bars and EAB.db.profile.bars["XPBar"] and EAB.db.profile.bars["XPBar"].textReadDown end,
                         set=function(v)
