@@ -1905,6 +1905,32 @@ initFrame:SetScript("OnEvent", function(self)
             })
         end
 
+        -- WoW Forever: XP divider colours (5% dashed / 10% full stroke) + Text Background
+        -- colour, in the data-bar multiSwatch pattern. Live via ApplyDataBarLayout on set.
+        local function XPB() return EAB.db.profile.bars["XPBar"] end
+        _, h = W:DualRow(parent, y,
+            { type="multiSwatch", text="Divider Colors",
+              swatches = {
+                  { tooltip = "5% Tick",
+                    getValue = function() local c = XPB() and XPB().tick5Color; if c then return c.r or 220/255, c.g or 167/255, c.b or 127/255 end return 220/255, 167/255, 127/255 end,
+                    setValue = function(r, g, b) XPB().tick5Color = { r = r, g = g, b = b }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
+                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
+                    refreshAlpha = function() return 1 end },
+                  { tooltip = "10% Tick",
+                    getValue = function() local c = XPB() and XPB().tick10Color; if c then return c.r or 1, c.g or 1, c.b or 1 end return 1, 1, 1 end,
+                    setValue = function(r, g, b) XPB().tick10Color = { r = r, g = g, b = b }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
+                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
+                    refreshAlpha = function() return 1 end },
+              } },
+            { type="multiSwatch", text="Text Background",
+              swatches = {
+                  { tooltip = "Text Background Color",
+                    getValue = function() local c = XPB() and XPB().textBgColor; if c then return c.r or 0.06, c.g or 0.06, c.b or 0.08 end return 0.06, 0.06, 0.08 end,
+                    setValue = function(r, g, b) local o = XPB().textBgColor or {}; XPB().textBgColor = { r = r, g = g, b = b, a = o.a or 0.9 }; if ns.ApplyDataBarLayout then ns.ApplyDataBarLayout("XPBar") end end,
+                    onClick = function(self) if self._eabOrigClick then self._eabOrigClick(self) end end,
+                    refreshAlpha = function() return 1 end },
+              } }); y = y - h
+
         _, h = W:Spacer(parent, y, 12);  y = y - h
         BuildDataBarSection("RepBar", "REPUTATION BAR", "Rep Bar Visibility")
         if not EllesmereUI.IS_FOREVER then
